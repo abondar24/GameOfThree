@@ -8,8 +8,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.ws.rs.core.Response;
+import java.io.BufferedReader;
 import java.io.IOException;
 
+import java.io.InputStreamReader;
 import java.net.ConnectException;
 import java.util.Arrays;
 import java.util.List;
@@ -20,11 +22,13 @@ public class Client implements FaultListener, Runnable {
 
     private String rivalAddr;
 
-    private Integer intialNum = 0;
-
     private List<Integer> addRange;
 
     private Integer MOD = 3;
+
+    private Integer WAIT_INPUT = 15000;
+
+    private Boolean gameOver = false;
 
     public Client(String rivalAddr) {
         this.rivalAddr = rivalAddr;
@@ -37,11 +41,10 @@ public class Client implements FaultListener, Runnable {
         try {
             Response r = client.get();
             return r.readEntity(String.class);
-        } catch (Exception ex){
+        } catch (Exception ex) {
             logger.error(ex.getMessage());
             return "Rival not connected";
         }
-
 
 
     }
@@ -63,11 +66,10 @@ public class Client implements FaultListener, Runnable {
     }
 
 
-    private String makeMove(Integer resNumber, Integer addedNumber) {
+    private String makeMove(Move m) {
         WebClient client = WebClient.create("http://" + rivalAddr + "/make_move");
         WebClient.getConfig(client).getBus().setProperty("org.apache.cxf.logging.FaultListener", this);
 
-        Move m = new Move(addedNumber, resNumber);
         String body = "";
         ObjectMapper mapper = new ObjectMapper();
         try {
@@ -81,61 +83,108 @@ public class Client implements FaultListener, Runnable {
 
     }
 
-    private String initNumber(Integer initialNum) {
-        WebClient client = WebClient.create("http://" + rivalAddr + "/init_num/" + initialNum);
-        WebClient.getConfig(client).getBus().setProperty("org.apache.cxf.logging.FaultListener", this);
+    private Move enterAddNumber(Integer number, long waitInput) {
+        Scanner scanner = new Scanner(System.in);
+        Integer addNumber = 0;
+        System.out.println("Enter number and -1,0,+1");
+        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
 
-        Response resp = client.get();
-        return resp.readEntity(String.class);
+        try {
+
+            while (true) {
+
+                long startTime = System.currentTimeMillis();
+                while ((System.currentTimeMillis() - startTime) < waitInput && !br.ready()) {
+                }
+
+                if (br.ready()) {
+                    if (addRange.contains(addNumber)) {
+                        addNumber = Integer.valueOf(scanner.next());
+                    } else {
+                        System.out.println("Wrong add number. Enter -1 0 or 1");
+                        addNumber = Integer.valueOf(scanner.next());
+                    }
+                    if ((number + addNumber) % MOD != 0) {
+                        System.out.println(ResponseUtil.BAD_NUMBER);
+                        continue;
+                    }
+
+
+
+                } else {
+                    for (Integer ar : addRange) {
+                        if ((number + ar) % MOD == 0) {
+                            addNumber = ar;
+                        }
+                    }
+                    System.out.println("No input.Automatically added " + addNumber);
+                }
+                number = (number + addNumber) / 3;
+
+                return new Move(addNumber,number);
+            }
+
+        } catch (IOException ex) {
+            logger.error(ex.getMessage());
+            System.out.println("Input error");
+        }
+
+        return new Move(0,0);
+    }
+
+    public void makeClientMove(Integer number){
+        while (true) {
+
+            Move m = enterAddNumber(number,WAIT_INPUT);
+            String res = makeMove(m);
+            checkResponse(res);
+
+        }
+
+    }
+
+
+    private void checkResponse(String resp) {
+        switch (resp) {
+            case ResponseUtil.ACCEPTED:
+                System.out.println("Move accepted");
+                break;
+            case ResponseUtil.GAME_OVER:
+                System.out.println("Game over.");
+                break;
+        }
     }
 
     @Override
     public void run() {
-        while (true) {
-                if (initGame().equals(ResponseUtil.READY)) {
-                    Scanner scanner = new Scanner(System.in);
-                    System.out.println("Start game");
-                    System.out.println("Enter number and -1,0,+1(If it's a first move add 0) ");
-                    Integer number = Integer.valueOf(scanner.next());
-                    Integer addNumber = Integer.valueOf(scanner.next());
-                    if (addRange.contains(addNumber)) {
-                        String res = "";
-                        if (intialNum == 0) {
-                            intialNum = number;
-                            res = makeMove(number, addNumber);
-                        } else {
-                            res = makeMove(number, addNumber);
-                        }
-                        switch (res) {
-                            case ResponseUtil.ACCEPTED:
-                                System.out.println("Move accepted");
-                                break;
-                            case ResponseUtil.BAD_NUMBER:
-                                System.out.println("Your result is not divisible by 3. Please enter again");
-                                number = Integer.valueOf(scanner.next());
-                                addNumber = Integer.valueOf(scanner.next());
-                                makeMove(number, addNumber);
-                                break;
-                            case ResponseUtil.GAME_OVER:
-                                System.out.println("Game over.");
-                                break;
-                        }
-                    } else {
-                        System.out.println("Wrong add number. Enter -1 0 or 1");
-                    }
-                } else {
-                    System.out.println("Waiting for rival");
+
+        Integer number;
+            if (initGame().equals(ResponseUtil.READY)) {
+
+                Scanner scanner = new Scanner(System.in);
+                System.out.println("Start game.Enter initial number");
+                number = Integer.valueOf(scanner.next());
+                String resp = makeMove(new Move(0,number));
+                checkResponse(resp);
+
+            } else {
+                System.out.println("Waiting for rival");
+                while (!gameOver){
                     try {
                         Thread.sleep(15000l);
-                    } catch (InterruptedException ex){
+                    } catch (InterruptedException ex) {
                         logger.error(ex.getMessage());
                         System.out.println("Player not connected");
                     }
 
                 }
 
+            }
 
-        }
 
+    }
+
+    public void setGameOver(Boolean gameOver) {
+        this.gameOver = gameOver;
     }
 }

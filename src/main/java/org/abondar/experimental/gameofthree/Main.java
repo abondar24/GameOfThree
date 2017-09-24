@@ -19,9 +19,11 @@ public class Main {
         System.out.println("Enter rival's address");
         String client2Addr = in.next();
 
+        Client client = new Client(client2Addr);
+        Server server = new Server(client);
 
-        (new Thread(new Client(client2Addr))).start();
-        Server.startServer(port);
+        (new Thread(client)).start();
+        server.startServer(port);
 
     }
 }

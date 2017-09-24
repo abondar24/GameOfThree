@@ -7,22 +7,38 @@ import org.slf4j.LoggerFactory;
 import static spark.Spark.*;
 
 import java.io.IOException;
+import java.util.concurrent.*;
 
 
 public class Server {
 
-    private static Logger logger = LoggerFactory.getLogger(Server.class);
-    private static Integer MOD = 3;
+    private Logger logger = LoggerFactory.getLogger(Server.class);
+    private Integer MOD = 3;
 
-    private static Integer resNum;
-    public static void startServer(Integer port) {
+    private volatile Integer resNum;
+
+    private Client client;
+
+    public Server(Client client) {
+
+        this.client = client;
+
+        client.run();
+    }
+
+    public void startServer(Integer port) {
         port(port);
         get("/init_game", (req, res) -> ResponseUtil.READY);
         post("/make_move", (req, res) -> {
 
             Move m = getMove(req.body());
             resNum = m.getResultingNumber();
-            System.out.printf("User has made a move with: %d \n" ,resNum);
+            System.out.printf("(Server) User has made a move with: %d \n",resNum);
+            //ExecutorService executorService = Executors.newCachedThreadPool();
+            //Future future = executorService.submit(() -> client.makeClientMove(resNum));
+            client.makeClientMove(resNum);
+           // executorService.shutdown();
+
             return respToMove(resNum);
         });
 
@@ -30,7 +46,7 @@ public class Server {
     }
 
 
-    private static Move getMove(String moveData) {
+    private Move getMove(String moveData) {
         ObjectMapper mapper = new ObjectMapper();
         Move m = new Move();
         try {
@@ -43,12 +59,10 @@ public class Server {
     }
 
 
-    private static String respToMove(Integer resNum) {
+    private  String respToMove(Integer resNum) {
         if (resNum == 1) {
+            client.setGameOver(true);
             return ResponseUtil.GAME_OVER;
-        } else if (resNum % MOD != 0 ) {
-
-            return ResponseUtil.BAD_NUMBER;
         } else {
             return ResponseUtil.ACCEPTED;
         }
