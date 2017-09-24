@@ -7,11 +7,21 @@ import java.util.Scanner;
 
 public class Main {
 
+
+    private static String client2Addr = "localhost:8090";
+
     public static void main(String[] args) {
-        BasicConfigurator.configure();
+        //  BasicConfigurator.configure();
         Scanner in = new Scanner(System.in);
         System.out.println("Enter port number");
         Integer port = Integer.valueOf(in.next());
+
+        System.out.println("Enter rival's address");
+        String client2Addr = in.next();
+
+
+        (new Thread(new Client(client2Addr))).start();
         Server.startServer(port);
+
     }
 }

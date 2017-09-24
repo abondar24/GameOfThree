@@ -14,20 +14,23 @@ public class Server {
     private static Logger logger = LoggerFactory.getLogger(Server.class);
     private static Integer MOD = 3;
 
+    private static Integer resNum;
     public static void startServer(Integer port) {
         port(port);
-        get("/init_game", (req, res) -> "Ready");
+        get("/init_game", (req, res) -> ResponseUtil.READY);
         post("/make_move", (req, res) -> {
 
-            Integer resNum = makeMove(req.body());
-
+            Move m = getMove(req.body());
+            resNum = m.getResultingNumber();
+            System.out.printf("User has made a move with: %d \n" ,resNum);
             return respToMove(resNum);
         });
+
 
     }
 
 
-    public static Integer makeMove(String moveData) {
+    private static Move getMove(String moveData) {
         ObjectMapper mapper = new ObjectMapper();
         Move m = new Move();
         try {
@@ -36,17 +39,18 @@ public class Server {
             logger.error(ex.getLocalizedMessage());
         }
 
-        return m.getResultingNumber() + m.getAddedNumber();
+        return m;
     }
 
 
     private static String respToMove(Integer resNum) {
         if (resNum == 1) {
-            return "Game Over";
-        } else if (resNum % MOD != 0) {
-            return "Bad Number";
+            return ResponseUtil.GAME_OVER;
+        } else if (resNum % MOD != 0 ) {
+
+            return ResponseUtil.BAD_NUMBER;
         } else {
-            return "Accepted";
+            return ResponseUtil.ACCEPTED;
         }
 
     }

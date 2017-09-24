@@ -7,11 +7,10 @@ public class Move {
 
     public Move(){}
 
-    public Move( Integer addedNumber, Integer resultingNumber) {
+    public Move(Integer addedNumber, Integer resultingNumber) {
         this.addedNumber = addedNumber;
         this.resultingNumber = resultingNumber;
     }
-
 
     public Integer getAddedNumber() {
         return addedNumber;
