@@ -8,8 +8,6 @@ import java.util.Scanner;
 public class Main {
 
 
-    private static String client2Addr = "localhost:8090";
-
     public static void main(String[] args) {
         //  BasicConfigurator.configure();
         Scanner in = new Scanner(System.in);

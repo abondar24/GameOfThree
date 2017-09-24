@@ -15,15 +15,15 @@ public class Server {
     private Logger logger = LoggerFactory.getLogger(Server.class);
     private Integer MOD = 3;
 
-    private volatile Integer resNum;
+    private  Integer resNum;
 
-    private Client client;
+    private  Client client;
 
     public Server(Client client) {
-
+        ThreadLocal tl = new ThreadLocal();
         this.client = client;
 
-        client.run();
+        tl.set(client);
     }
 
     public void startServer(Integer port) {
@@ -33,11 +33,8 @@ public class Server {
 
             Move m = getMove(req.body());
             resNum = m.getResultingNumber();
-            System.out.printf("(Server) User has made a move with: %d \n",resNum);
-            //ExecutorService executorService = Executors.newCachedThreadPool();
-            //Future future = executorService.submit(() -> client.makeClientMove(resNum));
+            System.out.printf("(Server) User has made a move with %d and got \n",m.getAddedNumber(),resNum);
             client.makeClientMove(resNum);
-           // executorService.shutdown();
 
             return respToMove(resNum);
         });
