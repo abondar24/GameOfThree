@@ -1,6 +1,7 @@
 package org.abondar.experimental.gameofthree;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sun.org.apache.regexp.internal.RE;
 import org.apache.cxf.jaxrs.client.WebClient;
 import org.apache.cxf.logging.FaultListener;
 import org.apache.cxf.message.Message;
@@ -84,6 +85,7 @@ public class Client implements FaultListener, Runnable {
     }
 
     private Move enterAddNumber(Integer number, long waitInput) {
+
         Scanner scanner = new Scanner(System.in);
         Integer addNumber = 0;
         System.out.println("Enter number and -1,0,+1");
@@ -98,18 +100,16 @@ public class Client implements FaultListener, Runnable {
                 }
 
                 if (br.ready()) {
-                    if (addRange.contains(addNumber)) {
-                        addNumber = Integer.valueOf(scanner.next());
-                    } else {
+                    addNumber = Integer.valueOf(scanner.next());
+                    if (!addRange.contains(addNumber)) {
                         System.out.println("Wrong add number. Enter -1 0 or 1");
                         addNumber = Integer.valueOf(scanner.next());
                     }
+
                     if ((number + addNumber) % MOD != 0) {
                         System.out.println(ResponseUtil.BAD_NUMBER);
-                        continue;
+                        addNumber = Integer.valueOf(scanner.next());
                     }
-
-
 
                 } else {
                     for (Integer ar : addRange) {
@@ -132,28 +132,19 @@ public class Client implements FaultListener, Runnable {
         return new Move(0,0);
     }
 
+
     public void makeClientMove(Integer number){
         while (true) {
 
-            Move m = enterAddNumber(number,WAIT_INPUT);
-            String res = makeMove(m);
-            checkResponse(res);
-
-        }
-
+                Move m = enterAddNumber(number,WAIT_INPUT);
+                String res = makeMove(m);
+                System.out.println(res);
+                if (res.equals(ResponseUtil.GAME_OVER)){
+                    break;
+                }
+            }
     }
 
-
-    private void checkResponse(String resp) {
-        switch (resp) {
-            case ResponseUtil.ACCEPTED:
-                System.out.println("Move accepted");
-                break;
-            case ResponseUtil.GAME_OVER:
-                System.out.println("Game over.");
-                break;
-        }
-    }
 
     @Override
     public void run() {
@@ -165,7 +156,7 @@ public class Client implements FaultListener, Runnable {
                 System.out.println("Start game.Enter initial number");
                 number = Integer.valueOf(scanner.next());
                 String resp = makeMove(new Move(0,number));
-                checkResponse(resp);
+                System.out.println(resp);
 
             } else {
                 System.out.println("Waiting for rival");

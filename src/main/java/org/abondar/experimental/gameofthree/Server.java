@@ -13,7 +13,6 @@ import java.util.concurrent.*;
 public class Server {
 
     private Logger logger = LoggerFactory.getLogger(Server.class);
-    private Integer MOD = 3;
 
     private  Integer resNum;
 
@@ -33,10 +32,18 @@ public class Server {
 
             Move m = getMove(req.body());
             resNum = m.getResultingNumber();
-            System.out.printf("(Server) User has made a move with %d and got \n",m.getAddedNumber(),resNum);
-            client.makeClientMove(resNum);
 
+            System.out.printf("(Server) User has made a move with %d and got %d\n",m.getAddedNumber(),resNum);
+            ExecutorService executorService = Executors.newCachedThreadPool();
+            Future<Void> future = executorService.submit(()->{
+                client.makeClientMove(resNum);
+                return null;
+
+            });
+
+            future.get();
             return respToMove(resNum);
+
         });
 
 
