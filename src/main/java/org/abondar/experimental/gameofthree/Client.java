@@ -15,14 +15,9 @@ import java.io.InputStreamReader;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Scanner;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 
 public class Client implements FaultListener {
     private static Logger logger = LoggerFactory.getLogger(Client.class);
-
-    private String rivalAddr;
 
     private List<Integer> addRange;
 
@@ -36,9 +31,8 @@ public class Client implements FaultListener {
 
     public Client(String rivalAddr) {
 
-        this.rivalAddr = rivalAddr;
         addRange = Arrays.asList(-1, 0, 1);
-         client = WebClient.create("http://" + rivalAddr);
+        client = WebClient.create("http://" + rivalAddr);
         WebClient.getConfig(client).getBus().setProperty("org.apache.cxf.logging.FaultListener", this);
     }
 
@@ -89,10 +83,9 @@ public class Client implements FaultListener {
     }
 
 
-
     private void shutdown() {
-       client.reset().path("/shutdown").get();
-       client.close();
+        client.reset().path("/shutdown").get();
+        client.close();
     }
 
     private Move enterAddNumber(Integer number, long waitInput) {
