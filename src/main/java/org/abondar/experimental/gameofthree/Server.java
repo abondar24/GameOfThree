@@ -62,7 +62,7 @@ public class Server {
     }
 
 
-    private Move getMove(String moveData) {
+    public Move getMove(String moveData) {
         ObjectMapper mapper = new ObjectMapper();
         Move m = new Move();
         try {
@@ -75,7 +75,7 @@ public class Server {
     }
 
 
-    private String respToMove(Integer resNum) {
+    public String respToMove(Integer resNum) {
         if (resNum == 1) {
             client.setGameOver(true);
             return ResponseUtil.GAME_OVER;

@@ -88,7 +88,7 @@ public class Client implements FaultListener {
         client.close();
     }
 
-    private Move enterAddNumber(Integer number, long waitInput) {
+    public Move enterAddNumber(Integer number, long waitInput) {
 
         Scanner scanner = new Scanner(System.in);
         Integer addNumber = 0;
