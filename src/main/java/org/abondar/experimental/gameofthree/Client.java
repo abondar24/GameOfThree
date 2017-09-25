@@ -1,7 +1,6 @@
 package org.abondar.experimental.gameofthree;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.sun.org.apache.regexp.internal.RE;
 import org.apache.cxf.jaxrs.client.WebClient;
 import org.apache.cxf.logging.FaultListener;
 import org.apache.cxf.message.Message;
@@ -13,12 +12,14 @@ import java.io.BufferedReader;
 import java.io.IOException;
 
 import java.io.InputStreamReader;
-import java.net.ConnectException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Scanner;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
-public class Client implements FaultListener, Runnable {
+public class Client implements FaultListener {
     private static Logger logger = LoggerFactory.getLogger(Client.class);
 
     private String rivalAddr;
@@ -31,20 +32,25 @@ public class Client implements FaultListener, Runnable {
 
     private Boolean gameOver = false;
 
+    private WebClient client;
+
     public Client(String rivalAddr) {
+
         this.rivalAddr = rivalAddr;
         addRange = Arrays.asList(-1, 0, 1);
+         client = WebClient.create("http://" + rivalAddr);
+        WebClient.getConfig(client).getBus().setProperty("org.apache.cxf.logging.FaultListener", this);
     }
 
     private String initGame() {
-        WebClient client = WebClient.create("http://" + rivalAddr + "/init_game");
-        WebClient.getConfig(client).getBus().setProperty("org.apache.cxf.logging.FaultListener", this);
+
         try {
-            Response r = client.get();
+
+            Response r = client.reset().path("/init_game").get();
             return r.readEntity(String.class);
         } catch (Exception ex) {
             logger.error(ex.getMessage());
-            return "Rival not connected";
+            return ResponseUtil.NOT_CONNECTED;
         }
 
 
@@ -57,7 +63,7 @@ public class Client implements FaultListener, Runnable {
             Throwable cause = e.getCause();
             if (cause != null) {
                 if (cause instanceof java.net.ConnectException) {
-                    logger.error("Rival not available");
+                    logger.error(ResponseUtil.NOT_CONNECTED);
                     return false;
                 }
             }
@@ -68,8 +74,6 @@ public class Client implements FaultListener, Runnable {
 
 
     private String makeMove(Move m) {
-        WebClient client = WebClient.create("http://" + rivalAddr + "/make_move");
-        WebClient.getConfig(client).getBus().setProperty("org.apache.cxf.logging.FaultListener", this);
 
         String body = "";
         ObjectMapper mapper = new ObjectMapper();
@@ -79,16 +83,23 @@ public class Client implements FaultListener, Runnable {
             logger.error(ex.getMessage());
         }
 
-        Response resp = client.post(body);
+        Response resp = client.reset().path("/make_move").post(body);
         return resp.readEntity(String.class);
 
+    }
+
+
+
+    private void shutdown() {
+       client.reset().path("/shutdown").get();
+       client.close();
     }
 
     private Move enterAddNumber(Integer number, long waitInput) {
 
         Scanner scanner = new Scanner(System.in);
         Integer addNumber = 0;
-        System.out.println("Enter number and -1,0,+1");
+        System.out.println(ResponseUtil.ENTER_FROM_RANGE);
         BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
 
         try {
@@ -102,7 +113,7 @@ public class Client implements FaultListener, Runnable {
                 if (br.ready()) {
                     addNumber = Integer.valueOf(scanner.next());
                     if (!addRange.contains(addNumber)) {
-                        System.out.println("Wrong add number. Enter -1 0 or 1");
+                        System.out.println("Wrong add number. " + ResponseUtil.ENTER_FROM_RANGE);
                         addNumber = Integer.valueOf(scanner.next());
                     }
 
@@ -121,7 +132,7 @@ public class Client implements FaultListener, Runnable {
                 }
                 number = (number + addNumber) / 3;
 
-                return new Move(addNumber,number);
+                return new Move(addNumber, number);
             }
 
         } catch (IOException ex) {
@@ -129,48 +140,50 @@ public class Client implements FaultListener, Runnable {
             System.out.println("Input error");
         }
 
-        return new Move(0,0);
+        return new Move(0, 0);
     }
 
 
-    public void makeClientMove(Integer number){
-        while (true) {
+    public synchronized void makeClientMove(Integer number) {
 
-                Move m = enterAddNumber(number,WAIT_INPUT);
-                String res = makeMove(m);
-                System.out.println(res);
-                if (res.equals(ResponseUtil.GAME_OVER)){
-                    break;
-                }
-            }
+        if (number == 1) {
+            System.out.println(ResponseUtil.GAME_OVER);
+            shutdown();
+            System.exit(0);
+        }
+        Move m = enterAddNumber(number, WAIT_INPUT);
+        String res = makeMove(m);
+        System.out.println(res);
+
+
     }
 
 
-    @Override
     public void run() {
 
         Integer number;
-            if (initGame().equals(ResponseUtil.READY)) {
+        if (initGame().equals(ResponseUtil.READY)) {
 
-                Scanner scanner = new Scanner(System.in);
-                System.out.println("Start game.Enter initial number");
-                number = Integer.valueOf(scanner.next());
-                String resp = makeMove(new Move(0,number));
-                System.out.println(resp);
+            Scanner scanner = new Scanner(System.in);
+            System.out.println("Start game.Enter initial number");
+            number = Integer.valueOf(scanner.next());
+            String resp = makeMove(new Move(0, number));
+            System.out.println(resp);
 
-            } else {
-                System.out.println("Waiting for rival");
-                while (!gameOver){
-                    try {
-                        Thread.sleep(15000l);
-                    } catch (InterruptedException ex) {
-                        logger.error(ex.getMessage());
-                        System.out.println("Player not connected");
-                    }
-
+        } else {
+            System.out.println("Waiting for rival");
+            while (!gameOver) {
+                try {
+                    Thread.sleep(15000l);
+                } catch (InterruptedException ex) {
+                    logger.error(ex.getMessage());
+                    System.out.println(ResponseUtil.NOT_CONNECTED);
                 }
 
             }
+
+
+        }
 
 
     }

@@ -14,9 +14,12 @@ public class Server {
 
     private Logger logger = LoggerFactory.getLogger(Server.class);
 
-    private  Integer resNum;
 
-    private  Client client;
+    private ExecutorService executorService = Executors.newCachedThreadPool();
+
+    private Integer resNum;
+
+    private Client client;
 
     public Server(Client client) {
         ThreadLocal tl = new ThreadLocal();
@@ -33,17 +36,26 @@ public class Server {
             Move m = getMove(req.body());
             resNum = m.getResultingNumber();
 
-            System.out.printf("(Server) User has made a move with %d and got %d\n",m.getAddedNumber(),resNum);
-            ExecutorService executorService = Executors.newCachedThreadPool();
-            Future<Void> future = executorService.submit(()->{
+
+            System.out.printf("(Server) User has made a move with %d and got %d\n", m.getAddedNumber(), resNum);
+
+
+            Future<Void> future = executorService.submit(() -> {
                 client.makeClientMove(resNum);
                 return null;
 
             });
 
-            future.get();
             return respToMove(resNum);
 
+        });
+
+        get("/shutdown", (req, res) -> {
+            System.out.println("Shutting");
+            stop();
+            executorService.shutdownNow();
+            // System.exit(0);
+            return "";
         });
 
 
@@ -63,7 +75,7 @@ public class Server {
     }
 
 
-    private  String respToMove(Integer resNum) {
+    private String respToMove(Integer resNum) {
         if (resNum == 1) {
             client.setGameOver(true);
             return ResponseUtil.GAME_OVER;
